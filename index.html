@@ -1,0 +1,764 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Rent It or Own It</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;800&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@500;600&display=swap">
+<style>
+/* Layout: game-show "stages" — one lesson segment on screen at a time, sticky agenda + timer bar, gold accents on Midnight Executive navy */
+:root{
+  --bg:#F2F4F8; --surface:#FFFFFF; --surface-2:#E8ECF3; --fg:#12203A; --muted:#4A5873;
+  --gold:#8A6417; --gold-soft:#F3E6C4; --line:#D3DAE6; --navy:#12203A;
+  --good:#1F7A4D; --warn:#8F5A00; --bad:#B23A2E; --on-gold:#FFFFFF;
+  --display:"Playfair Display",Georgia,"Times New Roman",serif;
+  --body:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --mono:"IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace;
+  --r:10px;
+}
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){
+  --bg:#0D1829; --surface:#15233C; --surface-2:#1C2D4B; --fg:#EEF1F6; --muted:#AEB9CB;
+  --gold:#E0B864; --gold-soft:#3A3220; --line:#2B3D5C; --navy:#0D1829;
+  --good:#66CC97; --warn:#F0B355; --bad:#F08A80; --on-gold:#0D1829; color-scheme:dark }}
+:root[data-theme="dark"]{
+  --bg:#0D1829; --surface:#15233C; --surface-2:#1C2D4B; --fg:#EEF1F6; --muted:#AEB9CB;
+  --gold:#E0B864; --gold-soft:#3A3220; --line:#2B3D5C; --navy:#0D1829;
+  --good:#66CC97; --warn:#F0B355; --bad:#F08A80; --on-gold:#0D1829; color-scheme:dark }
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+img{max-width:100%}
+body{margin:0;background:var(--bg);color:var(--fg);font-family:var(--body);font-size:17px;line-height:1.55}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:10;background:var(--surface)}
+h1,h2,h3{font-family:var(--display);text-wrap:balance;line-height:1.15;margin:0}
+h1{font-size:clamp(2rem,5vw,3.2rem);font-weight:800}
+h2{font-size:clamp(1.6rem,3.6vw,2.3rem);font-weight:800}
+h3{font-size:1.25rem;font-weight:600}
+p{margin:0}
+.mono{font-family:var(--mono);font-variant-numeric:tabular-nums}
+.eyebrow{font-family:var(--mono);font-size:.78rem;letter-spacing:.12em;text-transform:uppercase;color:var(--gold);font-weight:600}
+button,input,select,textarea{font:inherit;color:inherit}
+:focus-visible{outline:3px solid var(--gold);outline-offset:2px;border-radius:4px}
+.wrap{max-width:1100px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+
+/* top bar */
+.bar{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--surface);border-bottom:1px solid var(--line)}
+.bar .wrap{display:flex;gap:12px;align-items:center;padding-block:10px;flex-wrap:wrap}
+.brand{font-family:var(--display);font-weight:800;font-size:1.15rem;white-space:nowrap}
+.brand span{color:var(--gold)}
+.agenda{display:flex;gap:6px;overflow-x:auto;flex:1 1 400px;min-width:0;padding-bottom:2px}
+.agenda a{flex:none;text-decoration:none;color:var(--muted);font-size:.85rem;padding:6px 10px;border-radius:999px;border:1px solid var(--line);white-space:nowrap}
+.agenda a .mono{font-size:.75rem;margin-left:4px}
+.agenda a[aria-current="page"]{background:var(--gold);color:var(--on-gold);border-color:var(--gold);font-weight:600}
+.timer{display:flex;align-items:center;gap:6px}
+.clock{font-family:var(--mono);font-size:1.25rem;font-weight:600;min-width:4.2ch;text-align:right}
+.clock.low{color:var(--bad)}
+.tbtn{border:1px solid var(--line);background:var(--surface-2);border-radius:8px;padding:5px 10px;cursor:pointer;font-size:.85rem}
+
+main{padding-block:28px 60px}
+section.stage{display:grid;gap:22px}
+.stage-head{display:grid;gap:8px}
+.lede{color:var(--muted);max-width:65ch}
+.grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,320px),1fr));gap:18px}
+.grid3{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,240px),1fr));gap:14px}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:20px;display:grid;gap:12px;align-content:start;min-width:0}
+.teacher{border:1px dashed var(--gold);border-radius:var(--r);padding:12px 16px;background:var(--gold-soft)}
+.teacher summary{cursor:pointer;font-weight:600}
+.teacher p,.teacher ul{margin-top:8px}
+.teacher ul{padding-left:1.2em;margin-bottom:0}
+.btn{background:var(--gold);color:var(--on-gold);border:0;border-radius:8px;padding:10px 16px;font-weight:600;cursor:pointer}
+.btn.ghost{background:transparent;color:var(--fg);border:1px solid var(--line)}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.nav-foot{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;border-top:1px solid var(--line);padding-top:18px}
+
+/* overview */
+.hero{display:grid;gap:14px}
+.hero h1 em{font-style:normal;color:var(--gold)}
+.goals{margin:0;padding-left:1.2em;display:grid;gap:6px}
+.agenda-table{width:100%;border-collapse:collapse;font-size:.95rem}
+.agenda-table th,.agenda-table td{text-align:left;padding:8px 6px;border-bottom:1px solid var(--line);vertical-align:top}
+.agenda-table td:first-child{font-family:var(--mono);white-space:nowrap;color:var(--gold);font-weight:600}
+.scroll{overflow-x:auto}
+
+/* warm up */
+.myth{display:grid;gap:10px}
+.myth .q{font-family:var(--display);font-size:1.3rem;font-weight:600}
+.verdict{font-family:var(--mono);font-weight:600;letter-spacing:.06em}
+.verdict.fact{color:var(--good)} .verdict.myth{color:var(--bad)} .verdict.depends{color:var(--warn)}
+
+/* versus cards */
+.vs{display:grid;grid-template-columns:1fr auto 1fr;gap:14px;align-items:stretch}
+.vs .mid{align-self:center;font-family:var(--display);font-weight:800;font-size:1.6rem;color:var(--gold)}
+@media (max-width:700px){.vs{grid-template-columns:1fr}.vs .mid{justify-self:center}}
+.list{margin:0;padding-left:1.1em;display:grid;gap:4px}
+.cost-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,190px),1fr));gap:10px}
+.cost{border:1px solid var(--line);border-radius:8px;padding:12px;background:var(--surface-2);display:grid;gap:4px}
+.cost b{font-family:var(--mono);font-size:.8rem;letter-spacing:.08em;text-transform:uppercase;color:var(--gold)}
+
+/* persona */
+.personas{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,160px),1fr));gap:10px}
+.pcard{text-align:left;border:1px solid var(--line);background:var(--surface);border-radius:10px;padding:12px;cursor:pointer;display:grid;gap:4px}
+.pcard[aria-pressed="true"]{border-color:var(--gold);box-shadow:0 0 0 2px var(--gold) inset}
+.pcard .nm{font-weight:600}
+.pcard .tg{font-size:.82rem;color:var(--muted)}
+.fields{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,170px),1fr));gap:12px}
+.field{display:grid;gap:4px}
+.field label{font-size:.82rem;color:var(--muted);font-weight:500}
+.field input,.field select{background:var(--surface-2);border:1px solid var(--line);border-radius:8px;padding:8px 10px;font-family:var(--mono);width:100%}
+.check{display:flex;gap:8px;align-items:flex-start;font-size:.92rem}
+.check input{margin-top:5px;accent-color:var(--gold)}
+.score{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.tile{border:1px solid var(--line);border-radius:10px;padding:14px;display:grid;gap:4px;background:var(--surface-2)}
+.tile .k{font-size:.8rem;color:var(--muted)}
+.tile .v{font-family:var(--mono);font-size:1.5rem;font-weight:600;font-variant-numeric:tabular-nums}
+.tile.win{border-color:var(--good);box-shadow:0 0 0 2px var(--good) inset}
+.badge{display:inline-block;font-family:var(--mono);font-size:.72rem;font-weight:600;padding:2px 8px;border-radius:999px;border:1px solid currentColor;letter-spacing:.05em}
+.callout{border-left:4px solid var(--gold);padding:10px 14px;background:var(--surface-2);border-radius:0 8px 8px 0}
+.meter{height:14px;border-radius:999px;background:var(--surface-2);border:1px solid var(--line);overflow:hidden}
+.meter i{display:block;height:100%;width:0;transition:width .4s}
+.status{font-weight:600}
+.status.good{color:var(--good)} .status.warn{color:var(--warn)} .status.bad{color:var(--bad)}
+.breakeven{width:100%;height:auto;display:block}
+small.note{color:var(--muted);font-size:.82rem}
+
+/* house hack */
+.duplex{display:grid;grid-template-columns:1fr 1fr;border:2px solid var(--gold);border-radius:10px;overflow:hidden}
+.duplex div{padding:14px;display:grid;gap:2px;text-align:center}
+.duplex div+div{border-left:2px dashed var(--gold)}
+.duplex .roof{grid-column:1/-1;background:var(--gold);color:var(--on-gold);font-family:var(--mono);font-weight:600;font-size:.8rem;letter-spacing:.1em;padding:6px}
+input[type=range]{width:100%;accent-color:var(--gold)}
+.risk{perspective:800px}
+.flip{border:1px solid var(--line);border-radius:10px;background:var(--surface);padding:14px;text-align:left;cursor:pointer;width:100%;display:grid;gap:6px;min-height:120px}
+.flip .back{display:none}
+.flip[aria-expanded="true"] .front{display:none}
+.flip[aria-expanded="true"] .back{display:grid;gap:4px}
+
+/* plot twist */
+.deck{display:grid;place-items:center;gap:14px}
+.twist{width:min(100%,560px);border-radius:14px;border:2px solid var(--gold);background:var(--surface);padding:24px;display:grid;gap:12px}
+.twist .icon{font-family:var(--mono);font-size:.8rem;color:var(--gold);letter-spacing:.12em;text-transform:uppercase;font-weight:600}
+.twist h3{font-size:1.6rem}
+@keyframes deal{from{transform:translateY(16px) rotate(-2deg);opacity:.4}to{transform:none;opacity:1}}
+.dealt{animation:deal .35s ease-out}
+@media (prefers-reduced-motion:reduce){.dealt{animation:none}.meter i{transition:none}}
+
+/* exit ticket */
+fieldset{border:1px solid var(--line);border-radius:var(--r);padding:16px;margin:0;display:grid;gap:8px;background:var(--surface)}
+legend{font-weight:600;padding:0 6px}
+.opt{display:flex;gap:10px;align-items:flex-start;padding:8px 10px;border-radius:8px;border:1px solid transparent;cursor:pointer}
+.opt:hover{border-color:var(--line)}
+.opt input{margin-top:5px;accent-color:var(--gold)}
+.opt.correct{border-color:var(--good)} .opt.wrong{border-color:var(--bad)}
+.fb{font-size:.92rem}
+textarea{width:100%;min-height:110px;background:var(--surface-2);border:1px solid var(--line);border-radius:8px;padding:10px}
+.checks{list-style:none;margin:0;padding:0;display:grid;gap:6px}
+.checks li{display:flex;gap:8px;align-items:baseline}
+.ckmark{font-family:var(--mono);font-weight:600;color:var(--muted);width:1.2em}
+.checks li.done .ckmark{color:var(--good)}
+.checks li.done{color:var(--fg)}
+.cert-frame{overflow-x:auto;border-radius:10px}
+.cert-frame svg{display:block;width:100%;min-width:300px;height:auto}
+@media print{
+  body{background:#fff}
+  body *{visibility:hidden}
+  #cert,#cert *{visibility:visible}
+  #cert{position:absolute;left:0;top:0;width:100%}
+  #certActions{display:none}
+}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+</style>
+</head>
+<body>
+<header class="bar">
+  <div class="wrap">
+    <div class="brand">Rent It <span>or</span> Own It</div>
+    <nav class="agenda" aria-label="Lesson segments" id="agenda"></nav>
+    <div class="timer" role="group" aria-label="Segment timer">
+      <span class="clock" id="clock" aria-label="Time remaining">--:--</span>
+      <button class="tbtn" id="tStart" type="button">Start</button>
+      <button class="tbtn" id="tReset" type="button">Reset</button>
+    </div>
+  </div>
+</header>
+<p class="sr" aria-live="assertive" id="timeAlert"></p>
+
+<main class="wrap" id="main">
+
+<!-- OVERVIEW -->
+<section class="stage" data-id="overview" data-min="0" data-label="Overview">
+  <div class="hero">
+    <p class="eyebrow">Personal Finance · 45-minute interactive lesson</p>
+    <h1>Is renting really <em>throwing money away?</em></h1>
+    <p class="lede">Today you play the game show where every contestant gets a different life. You'll run the real numbers on renting and buying, test a duplex house hack, and survive a few plot twists before you make the call.</p>
+  </div>
+  <div class="grid2">
+    <div class="panel">
+      <h3>Learning goals</h3>
+      <p>By the end of this lesson, you will learn:</p>
+      <ul class="goals">
+        <li>the trade-offs between renting (flexibility, lower upfront cost, fewer repair bills) and buying (stability, equity)</li>
+        <li>the full cost of owning a home, beyond the mortgage payment</li>
+        <li>how the length of time you plan to stay changes the math</li>
+        <li>why an emergency fund matters as much as a down payment</li>
+        <li>how house hacking works, and the risks that come with it</li>
+      </ul>
+    </div>
+    <div class="panel">
+      <h3>Run of show</h3>
+      <div class="scroll">
+      <table class="agenda-table">
+        <thead><tr><th scope="col">Min</th><th scope="col">Segment</th><th scope="col">What students do</th></tr></thead>
+        <tbody>
+          <tr><td>5</td><td>Warm Up</td><td>Myth or Fact? Vote with fingers or corners.</td></tr>
+          <tr><td>7</td><td>The Showdown</td><td>Compare renting vs. buying and the hidden costs of owning.</td></tr>
+          <tr><td>12</td><td>Persona Lab</td><td>Draw a life card, run the numbers, check the emergency fund.</td></tr>
+          <tr><td>7</td><td>House Hack</td><td>Rent out half a duplex and flip the risk cards.</td></tr>
+          <tr><td>8</td><td>Plot Twist</td><td>Life happens. Does your decision survive?</td></tr>
+          <tr><td>6</td><td>Exit Ticket</td><td>Four questions and your final call.</td></tr>
+        </tbody>
+      </table>
+      </div>
+    </div>
+  </div>
+  <details class="teacher">
+    <summary>Teacher setup</summary>
+    <ul>
+      <li>Project this page. Students work in pairs or groups of 3; each group gets one persona in the Persona Lab.</li>
+      <li>The timer in the top bar resets to each segment's time when you move between segments. Press Start when you begin.</li>
+      <li>All dollar figures are classroom example numbers. Interest rates, taxes and insurance vary by place and change often; invite students to look up local numbers as an extension.</li>
+    </ul>
+  </details>
+  <div class="nav-foot"><span></span><button class="btn" data-go="warm-up" type="button">Start the show: Warm Up →</button></div>
+</section>
+
+<!-- WARM UP -->
+<section class="stage" data-id="warm-up" data-min="5" data-label="Warm Up" hidden>
+  <div class="stage-head">
+    <p class="eyebrow">Segment 1 · 5 minutes</p>
+    <h2>Warm Up: Myth or Fact?</h2>
+    <p class="lede">Read each statement. Thumbs up for <strong>Fact</strong>, thumbs down for <strong>Myth</strong>, flat hand for <strong>It depends</strong>. Then reveal.</p>
+  </div>
+  <div class="grid2" id="myths"></div>
+  <details class="teacher">
+    <summary>Teacher move</summary>
+    <p>Ask one student from the "Myth" side and one from the "Fact" side to defend their vote before revealing. The point to land: the right answer usually depends on the person's situation.</p>
+  </details>
+  <div class="nav-foot"><button class="btn ghost" data-go="overview" type="button">← Overview</button><button class="btn" data-go="learn" type="button">Next: The Showdown →</button></div>
+</section>
+
+<!-- LEARN -->
+<section class="stage" data-id="learn" data-min="7" data-label="The Showdown" hidden>
+  <div class="stage-head">
+    <p class="eyebrow">Segment 2 · 7 minutes</p>
+    <h2>The Showdown: Renter vs. Owner</h2>
+    <p class="lede">Neither side wins automatically. Each one buys you something different.</p>
+  </div>
+  <div class="vs">
+    <div class="panel">
+      <p class="eyebrow">Contestant 1</p>
+      <h3>The Renter</h3>
+      <ul class="list">
+        <li><strong>Flexibility:</strong> move when the lease ends</li>
+        <li><strong>Lower upfront cost:</strong> usually a deposit and first month's rent</li>
+        <li><strong>Fewer repair bills:</strong> the landlord replaces the furnace</li>
+        <li><strong>Predictable for now:</strong> but rent can rise at renewal</li>
+        <li><strong>No equity:</strong> rent pays for a place to live, not ownership</li>
+      </ul>
+    </div>
+    <div class="mid" aria-hidden="true">vs.</div>
+    <div class="panel">
+      <p class="eyebrow">Contestant 2</p>
+      <h3>The Owner</h3>
+      <ul class="list">
+        <li><strong>Stability:</strong> no landlord can decide not to renew</li>
+        <li><strong>Equity:</strong> each payment builds ownership</li>
+        <li><strong>Fixed principal and interest:</strong> on a fixed-rate loan</li>
+        <li><strong>Big upfront cost:</strong> down payment plus closing costs</li>
+        <li><strong>Every repair is yours:</strong> roof, water heater, plumbing</li>
+      </ul>
+    </div>
+  </div>
+  <div class="panel">
+    <h3>The mortgage payment is only the opening bid</h3>
+    <p>Being able to afford the payment does not mean you're ready to buy. Owners also pay:</p>
+    <div class="cost-grid">
+      <div class="cost"><b>Principal + Interest</b><span>The loan payment itself.</span></div>
+      <div class="cost"><b>Property tax</b><span>Set by your county; can rise after reassessment.</span></div>
+      <div class="cost"><b>Homeowners insurance</b><span>Required by the lender.</span></div>
+      <div class="cost"><b>PMI</b><span>Private mortgage insurance, often required with less than 20% down.</span></div>
+      <div class="cost"><b>Maintenance</b><span>A common rule of thumb: budget about 1% of the home's price per year.</span></div>
+      <div class="cost"><b>Closing &amp; selling</b><span>Fees when you buy (often 2–5%) and when you sell (often 5–6%).</span></div>
+    </div>
+    <p class="callout"><strong>Equity</strong> = what your home is worth − what you still owe on it.</p>
+  </div>
+  <details class="teacher">
+    <summary>Teacher move</summary>
+    <p>Quick check: "Name one cost the renter never pays." Cold-call two groups. Then ask, "Why would someone choose renting even if they could afford to buy?" Listen for flexibility and keeping savings available.</p>
+  </details>
+  <div class="nav-foot"><button class="btn ghost" data-go="warm-up" type="button">← Warm Up</button><button class="btn" data-go="persona-lab" type="button">Next: Persona Lab →</button></div>
+</section>
+
+<!-- PERSONA LAB -->
+<section class="stage" data-id="persona-lab" data-min="12" data-label="Persona Lab" hidden>
+  <div class="stage-head">
+    <p class="eyebrow">Segment 3 · 12 minutes</p>
+    <h2>Persona Lab: Run Their Numbers</h2>
+    <p class="lede">Each group gets a life. Draw one, or let the teacher assign. Adjust the numbers, then decide what your persona should do and why.</p>
+  </div>
+  <div class="row"><button class="btn" id="draw" type="button">Draw a random life card</button><span id="drawMsg" aria-live="polite" class="mono"></span></div>
+  <div class="personas" id="personas" role="group" aria-label="Personas"></div>
+
+  <div class="grid2">
+    <div class="panel">
+      <h3 id="pName">Persona</h3>
+      <p id="pStory" class="lede"></p>
+      <div class="fields">
+        <div class="field"><label for="rent">Monthly rent ($)</label><input id="rent" type="number" min="0" step="25"></div>
+        <div class="field"><label for="price">Home price ($)</label><input id="price" type="number" min="0" step="5000"></div>
+        <div class="field"><label for="dp">Down payment (%)</label><select id="dp"><option value="3.5">3.5%</option><option value="5">5%</option><option value="10">10%</option><option value="20">20%</option></select></div>
+        <div class="field"><label for="rate">Interest rate (%)</label><input id="rate" type="number" min="0" max="15" step="0.125"></div>
+        <div class="field"><label for="years">Years they'll stay</label><input id="years" type="number" min="1" max="30" step="1"></div>
+        <div class="field"><label for="savings">Savings today ($)</label><input id="savings" type="number" min="0" step="500"></div>
+        <div class="field"><label for="expenses">Other monthly expenses ($)</label><input id="expenses" type="number" min="0" step="50"></div>
+      </div>
+      <label class="check"><input type="checkbox" id="invest"> <span>The renter invests the down payment money instead (example: 6% per year)</span></label>
+      <small class="note">Example assumptions: 30-year fixed loan, property tax 1% of price per year, insurance $150/month, maintenance 1% per year, PMI 0.6% of the loan per year when down payment is under 20%, closing costs 3%, selling costs 6%, home values and rent grow 3% per year.</small>
+    </div>
+
+    <div class="panel" aria-live="polite" id="results">
+      <h3>Scoreboard</h3>
+      <div class="score">
+        <div class="tile" id="tRent"><span class="k">Renting: month 1</span><span class="v" id="mRent">$0</span></div>
+        <div class="tile" id="tBuy"><span class="k">Owning: month 1 (all-in)</span><span class="v" id="mBuy">$0</span></div>
+        <div class="tile" id="tRentN"><span class="k" id="lRentN">Net cost of renting</span><span class="v" id="nRent">$0</span></div>
+        <div class="tile" id="tBuyN"><span class="k" id="lBuyN">Net cost of owning</span><span class="v" id="nBuy">$0</span></div>
+      </div>
+      <p id="verdict" class="callout"></p>
+      <p class="mono" id="breakText"></p>
+      <svg class="breakeven" id="beChart" viewBox="0 0 520 170" role="img" aria-labelledby="beTitle"><title id="beTitle">Net cost of renting and owning by number of years stayed</title></svg>
+      <h3>Emergency fund check</h3>
+      <p>After the down payment and closing costs, how many months of expenses could they cover?</p>
+      <div class="meter" aria-hidden="true"><i id="efBar"></i></div>
+      <p><span class="status" id="efStatus"></span> <span id="efText"></span></p>
+      <small class="note">Many planners suggest keeping 3 to 6 months of expenses saved.</small>
+    </div>
+  </div>
+  <details class="teacher">
+    <summary>Teacher move</summary>
+    <ul>
+      <li>Have each group change only <strong>Years they'll stay</strong> and watch the break-even point. This is the "aha" moment for most students.</li>
+      <li>Ask: "Your persona can afford the payment. Are they ready to buy? Check the emergency fund."</li>
+      <li>Groups record: persona, recommendation (rent or buy), and two numbers that justify it.</li>
+    </ul>
+  </details>
+  <div class="nav-foot"><button class="btn ghost" data-go="learn" type="button">← The Showdown</button><button class="btn" data-go="house-hack" type="button">Next: House Hack →</button></div>
+</section>
+
+<!-- HOUSE HACK -->
+<section class="stage" data-id="house-hack" data-min="7" data-label="House Hack" hidden>
+  <div class="stage-head">
+    <p class="eyebrow">Segment 4 · 7 minutes</p>
+    <h2>Bonus Round: The Duplex House Hack</h2>
+    <p class="lede">Buy a duplex, live in one side, rent out the other. The tenant's rent helps pay your mortgage. Sounds like a cheat code. Is it?</p>
+  </div>
+  <div class="grid2">
+    <div class="panel">
+      <div class="duplex" aria-hidden="true">
+        <div class="roof">ONE DUPLEX, TWO FRONT DOORS</div>
+        <div><span class="eyebrow">Unit A</span><strong>You live here</strong></div>
+        <div><span class="eyebrow">Unit B</span><strong>Tenant pays rent</strong></div>
+      </div>
+      <div class="fields">
+        <div class="field"><label for="hPrice">Duplex price ($)</label><input id="hPrice" type="number" value="360000" step="5000" min="0"></div>
+        <div class="field"><label for="hDp">Down payment (%)</label><select id="hDp"><option value="3.5">3.5%</option><option value="5" selected>5%</option><option value="10">10%</option><option value="20">20%</option></select></div>
+        <div class="field"><label for="hRent">Unit B rent ($/month)</label><input id="hRent" type="number" value="1350" step="25" min="0"></div>
+      </div>
+      <div class="field">
+        <label for="hVac">Vacancy (months empty per year): <span class="mono" id="hVacOut">1</span></label>
+        <input id="hVac" type="range" min="0" max="6" step="1" value="1">
+      </div>
+      <small class="note">Uses the interest rate from the Persona Lab. Repairs on two units are budgeted at 1.5% of price per year. Some loan programs allow low down payments on a 2–4 unit home if the buyer lives in one unit.</small>
+    </div>
+    <div class="panel" aria-live="polite">
+      <h3>Your real housing cost</h3>
+      <div class="score">
+        <div class="tile"><span class="k">All-in owner cost / month</span><span class="v" id="hAll">$0</span></div>
+        <div class="tile"><span class="k">Average rent collected / month</span><span class="v" id="hIn">$0</span></div>
+        <div class="tile win" style="grid-column:1/-1"><span class="k">What you actually pay to live in Unit A</span><span class="v" id="hNet">$0</span></div>
+      </div>
+      <p class="callout" id="hCompare"></p>
+    </div>
+  </div>
+  <h3>Flip the risk cards</h3>
+  <div class="grid3" id="risks"></div>
+  <details class="teacher">
+    <summary>Teacher move</summary>
+    <p>Slide vacancy from 0 to 6 months. Ask: "At what point does the house hack stop helping?" Then flip the risk cards and discuss which risk would worry your persona most. Mention that some homeowners later keep a first home as a rental and add properties over time, which multiplies both the reward and the risk.</p>
+  </details>
+  <div class="nav-foot"><button class="btn ghost" data-go="persona-lab" type="button">← Persona Lab</button><button class="btn" data-go="plot-twist" type="button">Next: Plot Twist →</button></div>
+</section>
+
+<!-- PLOT TWIST -->
+<section class="stage" data-id="plot-twist" data-min="8" data-label="Plot Twist" hidden>
+  <div class="stage-head">
+    <p class="eyebrow">Segment 5 · 8 minutes</p>
+    <h2>Plot Twist: Life Happens</h2>
+    <p class="lede">Deal a card. It hits the persona currently loaded in the Persona Lab (<strong id="twPersona">—</strong>). Huddle for 60 seconds: does the decision still hold?</p>
+  </div>
+  <div class="deck">
+    <div class="row"><button class="btn" id="deal" type="button">Deal a plot twist</button><span class="mono" id="deckLeft"></span></div>
+    <article class="twist" id="twist" aria-live="polite">
+      <p class="icon">Card face down</p>
+      <h3>Ready when you are</h3>
+      <p>Press "Deal a plot twist" to reveal what life throws at your persona.</p>
+    </article>
+  </div>
+  <details class="teacher">
+    <summary>Teacher move</summary>
+    <p>Deal 3 or 4 cards. After each one, groups hold up R (rent) or B (buy) to show whether their recommendation changed. Ask the groups that switched to explain what number changed their mind.</p>
+  </details>
+  <div class="nav-foot"><button class="btn ghost" data-go="house-hack" type="button">← House Hack</button><button class="btn" data-go="exit-ticket" type="button">Next: Exit Ticket →</button></div>
+</section>
+
+<!-- EXIT TICKET -->
+<section class="stage" data-id="exit-ticket" data-min="6" data-label="Exit Ticket" hidden>
+  <div class="stage-head">
+    <p class="eyebrow">Segment 6 · 6 minutes</p>
+    <h2>Exit Ticket: Final Answer</h2>
+    <p class="lede">Answer on your own. You get instant feedback after each choice.</p>
+  </div>
+  <form id="quiz" class="grid2" novalidate></form>
+  <div class="panel">
+    <h3>Make the call</h3>
+    <label for="myCall">For my persona, I recommend <strong>renting / buying</strong> because… (use at least two numbers from the Persona Lab)</label>
+    <textarea id="myCall" placeholder="For Maya, I recommend buying because she plans to stay 10 years, which is past her break-even point of…"></textarea>
+    <div class="row"><button class="btn ghost" id="copyCall" type="button">Copy my answer</button><span id="copyMsg" aria-live="polite" class="mono"></span></div>
+    <p class="callout">Personal finance is not about one answer that works for everyone. It's about knowing your options, running the numbers, and choosing what fits <em>your</em> goals.</p>
+  </div>
+  <div class="panel" id="certPanel">
+    <p class="eyebrow">Achievement</p>
+    <h3>Earn your Housing Decision Pro badge</h3>
+    <p>Your certificate unlocks when you finish all three steps.</p>
+    <ul class="checks" id="certChecks">
+      <li id="ck1"><span class="ckmark" aria-hidden="true">○</span> <span>Answer all 4 exit ticket questions correctly <span class="mono" id="ck1n">(0/4)</span></span></li>
+      <li id="ck2"><span class="ckmark" aria-hidden="true">○</span> <span>Write your call (at least 40 characters)</span></li>
+      <li id="ck3"><span class="ckmark" aria-hidden="true">○</span> <span>Enter your name</span></li>
+    </ul>
+    <div class="field" style="max-width:360px"><label for="stuName">Your name as it should appear on the certificate</label><input id="stuName" type="text" maxlength="40" autocomplete="off"></div>
+    <div class="row"><button class="btn" id="claim" type="button" disabled>Claim my certificate</button><span id="claimMsg" aria-live="polite" class="mono"></span></div>
+    <div id="cert" hidden>
+      <div id="certSvg" class="cert-frame"></div>
+      <div class="row" id="certActions">
+        <button class="btn ghost standalone-only" id="printCert" type="button" hidden>Print certificate</button>
+        <button class="btn ghost standalone-only" id="dlBadge" type="button" hidden>Download badge image</button>
+        <small class="note" id="certTip">Take a screenshot to keep your certificate. It disappears when you leave this page.</small>
+      </div>
+    </div>
+  </div>
+  <div class="nav-foot"><button class="btn ghost" data-go="plot-twist" type="button">← Plot Twist</button><div class="row"><button class="btn ghost" id="resetAll" type="button">Clear everything</button><button class="btn ghost" data-go="overview" type="button">Back to Overview</button></div></div>
+  <p class="sr" aria-live="polite" id="resetMsg"></p>
+</section>
+
+</main>
+
+<script>
+(function(){
+const $=s=>document.querySelector(s);
+const money=n=>(n<0?"−$":"$")+Math.round(Math.abs(n)).toLocaleString("en-US");
+
+/* ---------- navigation + timer ---------- */
+const stages=[...document.querySelectorAll(".stage")];
+const agenda=$("#agenda");
+stages.forEach(s=>{
+  const a=document.createElement("a");
+  a.href="#"+s.dataset.id;
+  a.innerHTML=s.dataset.label+(+s.dataset.min?`<span class="mono">${s.dataset.min}m</span>`:"");
+  agenda.appendChild(a);
+});
+let remain=0,tick=null;
+const clock=$("#clock"),tStart=$("#tStart");
+function drawClock(){
+  const m=Math.floor(remain/60),s=remain%60;
+  clock.textContent=remain||current().dataset.min>0?`${m}:${String(s).padStart(2,"0")}`:"--:--";
+  clock.classList.toggle("low",remain>0&&remain<=60);
+}
+function stop(){clearInterval(tick);tick=null;tStart.textContent="Start"}
+function reset(){stop();remain=(+current().dataset.min)*60;drawClock()}
+tStart.onclick=()=>{
+  if(!(+current().dataset.min))return;
+  if(tick){stop();tStart.textContent="Resume";return}
+  if(remain<=0)remain=(+current().dataset.min)*60;
+  tStart.textContent="Pause";
+  tick=setInterval(()=>{remain--;drawClock();if(remain<=0){stop();$("#timeAlert").textContent="Time is up for "+current().dataset.label}},1000);
+};
+$("#tReset").onclick=reset;
+function current(){return stages.find(s=>!s.hidden)||stages[0]}
+function show(id){
+  const t=stages.find(s=>s.dataset.id===id)||stages[0];
+  stages.forEach(s=>s.hidden=s!==t);
+  agenda.querySelectorAll("a").forEach(a=>{if(a.getAttribute("href")==="#"+t.dataset.id)a.setAttribute("aria-current","page");else a.removeAttribute("aria-current")});
+  const cur=agenda.querySelector('[aria-current="page"]'); if(cur&&cur.scrollIntoView) cur.scrollIntoView({block:"nearest",inline:"nearest"});
+  reset();
+  if(t.dataset.id==="plot-twist")$("#twPersona").textContent=P().name;
+  window.scrollTo(0,0);
+  const h=t.querySelector("h1,h2"); if(h){h.setAttribute("tabindex","-1");h.focus({preventScroll:true})}
+}
+document.addEventListener("click",e=>{const g=e.target.closest("[data-go]");if(g){location.hash=g.dataset.go}});
+window.addEventListener("hashchange",()=>show(location.hash.slice(1)));
+
+/* ---------- warm up ---------- */
+const myths=[
+  {q:"Renting is just throwing money away.",v:"myth",l:"Myth",a:"Rent buys you a place to live plus flexibility and freedom from repair bills. Owners also 'throw away' money on interest, taxes, insurance and maintenance."},
+  {q:"If you can afford the monthly mortgage payment, you're ready to buy.",v:"myth",l:"Myth",a:"You also need cash for closing costs, taxes, insurance, repairs and an emergency fund left over after the down payment."},
+  {q:"Homeowners build equity over time.",v:"fact",l:"Fact",a:"Each payment reduces what you owe, and the home may rise in value. Equity is value minus what you still owe. Home values can also fall."},
+  {q:"Buying is always the better financial decision.",v:"depends",l:"It depends",a:"How long you'll stay, your savings, local prices and your goals all change the answer. Someone moving in two years often comes out ahead renting."}
+];
+$("#myths").innerHTML=myths.map((m,i)=>`<div class="panel myth"><p class="eyebrow">Statement ${i+1}</p><p class="q">“${m.q}”</p><button class="btn ghost" type="button" aria-expanded="false" aria-controls="ans${i}" data-reveal="${i}">Reveal</button><div id="ans${i}" hidden><p class="verdict ${m.v}">${m.l.toUpperCase()}</p><p>${m.a}</p></div></div>`).join("");
+$("#myths").addEventListener("click",e=>{const b=e.target.closest("[data-reveal]");if(!b)return;const d=$("#ans"+b.dataset.reveal);d.hidden=!d.hidden;b.setAttribute("aria-expanded",String(!d.hidden));b.textContent=d.hidden?"Reveal":"Hide"});
+
+/* ---------- persona lab ---------- */
+const personas=[
+  {name:"Jordan",tag:"Travel nurse, moves every 2 years",story:"Jordan earns good money on 13-week contracts and has already lived in four cities. Loves adventure. Hates mowing.",rent:1400,price:250000,dp:"10",years:2,savings:30000,expenses:2200},
+  {name:"Maya",tag:"First-year teacher, back in her hometown",story:"Maya just signed on at her old high school and plans to stay at least 10 years. She has some savings and a lot of opinions about paint colors.",rent:1100,price:210000,dp:"5",years:10,savings:18000,expenses:1800},
+  {name:"The Okafors",tag:"Family of four who want a yard",story:"Two kids, one dog, and a school district they love. They've saved for years and want to put down roots for 12 years or more.",rent:1850,price:320000,dp:"20",years:12,savings:90000,expenses:3600},
+  {name:"Luis",tag:"Electrician who fixes everything",story:"Luis can rewire a kitchen on a Saturday. He's curious about house hacking and plans to stay in town about 7 years.",rent:1200,price:280000,dp:"5",years:7,savings:24000,expenses:1700},
+  {name:"Sam",tag:"New job, life still taking shape",story:"Sam just started a first full-time job. Could get promoted, could move for grad school. Probably here about 3 years.",rent:1000,price:190000,dp:"5",years:3,savings:12000,expenses:1500},
+  {name:"Grandma Bea",tag:"Retiree who is done with repairs",story:"Bea sold the family house and has savings. She wants a place for about 8 years and never wants to call a roofer again.",rent:1300,price:230000,dp:"20",years:8,savings:120000,expenses:2000}
+];
+const A={tax:.01,ins:150,maint:.01,pmi:.006,closing:.03,sell:.06,app:.03,rentG:.03,rentIns:15,inv:.06};
+let pi=1;
+const P=()=>personas[pi];
+const ids=["rent","price","dp","rate","years","savings","expenses"];
+$("#personas").innerHTML=personas.map((p,i)=>`<button type="button" class="pcard" aria-pressed="false" data-p="${i}"><span class="nm">${p.name}</span><span class="tg">${p.tag}</span></button>`).join("");
+$("#personas").addEventListener("click",e=>{const b=e.target.closest("[data-p]");if(b)load(+b.dataset.p)});
+$("#draw").onclick=()=>{let n;do{n=Math.floor(Math.random()*personas.length)}while(n===pi&&personas.length>1);load(n);$("#drawMsg").textContent="You drew: "+personas[n].name};
+function load(i){
+  pi=i;const p=P();
+  document.querySelectorAll(".pcard").forEach(b=>b.setAttribute("aria-pressed",String(+b.dataset.p===i)));
+  $("#pName").textContent=p.name+": "+p.tag;$("#pStory").textContent=p.story;
+  ["rent","price","dp","years","savings","expenses"].forEach(k=>$("#"+k).value=p[k]);
+  calc();
+}
+ids.forEach(k=>$("#"+k).addEventListener("input",calc));
+$("#invest").addEventListener("change",calc);
+$("#rate").value=6.5;
+
+function pmt(L,rate,yrs){const r=rate/12,n=yrs*12;return r?L*r*Math.pow(1+r,n)/(Math.pow(1+r,n)-1):L/n}
+function bal(L,rate,pay,k){const r=rate/12;return r?L*Math.pow(1+r,k)-pay*(Math.pow(1+r,k)-1)/r:L-pay*k}
+function inputs(){const v=k=>Math.max(0,parseFloat($("#"+k).value)||0);return{rent:v("rent"),price:v("price"),dp:v("dp")/100,rate:v("rate")/100,years:Math.min(30,Math.max(1,Math.round(v("years"))||1)),savings:v("savings"),expenses:v("expenses"),invest:$("#invest").checked}}
+function owner(x){
+  const down=x.price*x.dp,loan=x.price-down,piPay=pmt(loan,x.rate,30);
+  const tax=x.price*A.tax/12,pmi=x.dp<.2?loan*A.pmi/12:0,maint=x.price*A.maint/12;
+  return{down,loan,piPay,tax,pmi,maint,ins:A.ins,closing:x.price*A.closing,monthly:piPay+tax+pmi+maint+A.ins};
+}
+function netCosts(x,Y,o,opt={}){
+  o=o||owner(x);
+  const cashOut=o.down+o.closing+o.monthly*12*Y;
+  const value=x.price*Math.pow(1+A.app,Y)*(opt.valueShock||1);
+  const equity=value*(1-A.sell)-Math.max(0,bal(o.loan,x.rate,o.piPay,12*Y));
+  let rentPaid=0;for(let t=0;t<Y;t++)rentPaid+=(x.rent*12*Math.pow(1+A.rentG,t))+A.rentIns*12;
+  let gain=x.invest?(o.down+o.closing)*(Math.pow(1+A.inv,Y)-1):0;
+  return{buy:cashOut-equity,rent:rentPaid-gain,equity};
+}
+function breakEven(x,o){for(let y=1;y<=30;y++){const n=netCosts(x,y,o);if(n.buy<n.rent)return y}return null}
+function calc(){
+  const x=inputs(),o=owner(x),n=netCosts(x,x.years,o),be=breakEven(x,o);
+  $("#mRent").textContent=money(x.rent+A.rentIns);
+  $("#mBuy").textContent=money(o.monthly);
+  $("#lRentN").textContent=`Net cost of renting, ${x.years} yr${x.years>1?"s":""}`;
+  $("#lBuyN").textContent=`Net cost of owning, ${x.years} yr${x.years>1?"s":""}`;
+  $("#nRent").textContent=money(n.rent);$("#nBuy").textContent=money(n.buy);
+  const buyWins=n.buy<n.rent;
+  $("#tRentN").classList.toggle("win",!buyWins);$("#tBuyN").classList.toggle("win",buyWins);
+  $("#verdict").innerHTML=`<strong>${buyWins?"Owning":"Renting"} costs about ${money(Math.abs(n.rent-n.buy))} less</strong> over ${x.years} year${x.years>1?"s":""}, after counting the equity ${P().name} would walk away with (${money(n.equity)}). Money isn't the only factor: think about flexibility, stability and stress.`;
+  $("#breakText").textContent=be?`Break-even: owning pulls ahead after about ${be} year${be>1?"s":""}.`:"Break-even: owning does not pull ahead within 30 years with these numbers.";
+  chart(x,o,be);
+  const left=x.savings-o.down-o.closing,mo=left/(x.expenses+o.monthly);
+  const bar=$("#efBar"),st=$("#efStatus");
+  bar.style.width=Math.max(0,Math.min(100,mo/6*100))+"%";
+  let cls,label;
+  if(left<0){cls="bad";label="Not enough cash.";$("#efText").textContent=`They're ${money(-left)} short of the down payment and closing costs.`}
+  else{cls=mo>=6?"good":mo>=3?"warn":"bad";label=mo>=6?"Ready.":mo>=3?"Thin cushion.":"Risky.";$("#efText").textContent=`${money(left)} left = about ${mo.toFixed(1)} months of expenses.`}
+  st.className="status "+cls;st.textContent=label;bar.style.background=`var(--${cls})`;
+  if(typeof hack==="function"&&document.getElementById("hNet"))hack();
+}
+function chart(x,o,be){
+  const svg=$("#beChart"),W=520,H=170,L=56,R=12,T=12,B=28,Ymax=15;
+  const pts=[];for(let y=1;y<=Ymax;y++)pts.push(Object.assign({y},netCosts(x,y,o)));
+  const vals=pts.flatMap(p=>[p.buy,p.rent]);let lo=Math.min(0,...vals),hi=Math.max(...vals);if(hi===lo)hi=lo+1;
+  const sx=y=>L+(y-1)/(Ymax-1)*(W-L-R),sy=v=>T+(hi-v)/(hi-lo)*(H-T-B);
+  const path=k=>pts.map((p,i)=>(i?"L":"M")+sx(p.y).toFixed(1)+","+sy(p[k]).toFixed(1)).join("");
+  const ticks=[lo,(lo+hi)/2,hi];
+  let g=ticks.map(t=>`<line x1="${L}" x2="${W-R}" y1="${sy(t)}" y2="${sy(t)}" stroke="var(--line)"/><text x="${L-6}" y="${sy(t)+4}" text-anchor="end" font-size="11" fill="var(--muted)" font-family="IBM Plex Mono,monospace">${t>=1e3||t<=-1e3?(t<0?"−":"")+"$"+Math.round(Math.abs(t)/1000)+"k":"$"+Math.round(t)}</text>`).join("");
+  g+=[1,5,10,15].map(y=>`<text x="${sx(y)}" y="${H-8}" text-anchor="middle" font-size="11" fill="var(--muted)" font-family="IBM Plex Mono,monospace">yr ${y}</text>`).join("");
+  const yy=x.years<=Ymax?`<line x1="${sx(x.years)}" x2="${sx(x.years)}" y1="${T}" y2="${H-B}" stroke="var(--gold)" stroke-dasharray="4 4"/><text x="${sx(x.years)+4}" y="${T+10}" font-size="11" fill="var(--gold)" font-family="IBM Plex Mono,monospace">stay</text>`:"";
+  g+=yy+`<path d="${path("rent")}" fill="none" stroke="var(--muted)" stroke-width="2.5" stroke-dasharray="7 4"/><path d="${path("buy")}" fill="none" stroke="var(--gold)" stroke-width="3"/>`;
+  g+=`<text x="${W-R}" y="${H-B-6}" text-anchor="end" font-size="11" fill="var(--fg)" font-family="IBM Plex Sans,sans-serif">solid = own · dashed = rent</text>`;
+  svg.innerHTML=`<title id="beTitle">Net cost of renting and owning by years stayed. ${be?"Owning pulls ahead after year "+be+".":"Owning does not pull ahead in 30 years."}</title>`+g;
+}
+
+/* ---------- house hack ---------- */
+const hh=["hPrice","hDp","hRent","hVac"];
+hh.forEach(k=>$("#"+k).addEventListener("input",hack));
+["rate"].forEach(k=>$("#"+k).addEventListener("input",hack));
+function hack(){
+  const price=+$("#hPrice").value||0,dp=(+$("#hDp").value)/100,rentB=+$("#hRent").value||0,vac=+$("#hVac").value,rate=(+$("#rate").value||0)/100;
+  $("#hVacOut").textContent=vac;
+  const loan=price*(1-dp),pi=pmt(loan,rate,30),all=pi+price*A.tax/12+(dp<.2?loan*A.pmi/12:0)+price*.015/12+A.ins*1.4;
+  const inc=rentB*(12-vac)/12,net=all-inc;
+  $("#hAll").textContent=money(all);$("#hIn").textContent=money(inc);$("#hNet").textContent=money(net)+"/mo";
+  const solo=P().rent;
+  $("#hCompare").innerHTML=net<solo?`That's <strong>${money(solo-net)} less per month</strong> than ${P().name}'s rent of ${money(solo)}, and you're building equity. You're also now a landlord.`:`That's <strong>${money(net-solo)} more per month</strong> than ${P().name}'s rent of ${money(solo)}. With this much vacancy, the hack isn't helping much yet.`;
+}
+const risks=[
+  {f:"The tenant stops paying",b:"Eviction can take months and cost legal fees. You still owe the full mortgage."},
+  {f:"Unit B needs a new HVAC",b:"Two units means two of everything to break. A reserve fund is essential."},
+  {f:"Your tenant is your neighbor",b:"Late-night noise, parking fights, 2 a.m. texts about a clogged sink. Landlording is a job."},
+  {f:"The market slows down",b:"If rents drop or the unit sits empty, your cost goes up. Run the numbers with vacancy."}
+];
+$("#risks").innerHTML=risks.map(r=>`<div class="risk"><button type="button" class="flip" aria-expanded="false"><span class="front"><span class="eyebrow">Risk card</span><strong>${r.f}</strong><small class="note">Tap to flip</small></span><span class="back"><span class="eyebrow">What it means</span><span>${r.b}</span></span></button></div>`).join("");
+$("#risks").addEventListener("click",e=>{const b=e.target.closest(".flip");if(b)b.setAttribute("aria-expanded",String(b.getAttribute("aria-expanded")!=="true"))});
+
+/* ---------- plot twist ---------- */
+const twists=[
+  {t:"Equipment",h:"The water heater quits",fx:(x,o)=>{const c=1600,left=x.savings-o.down-o.closing;return{d:`Replacement: ${money(c)}. Renter: the landlord pays. Owner: ${left>=c?"covered by the emergency fund, with "+money(left-c)+" left.":"the emergency fund can't cover it. That means a credit card or a loan."}`,q:"How would you feel paying this the month after closing?"}}},
+  {t:"Career",h:"Job transfer in year 2",fx:(x,o)=>{const n=netCosts(x,2,o);return{d:`Moving after 2 years: owning nets about ${money(n.buy)}, renting about ${money(n.rent)}. ${n.buy>n.rent?"Selling this early costs "+money(n.buy-n.rent)+" more than renting would have.":"Owning still came out ahead."}`,q:"How certain is your persona about staying put?"}}},
+  {t:"Lease renewal",h:"Rent jumps 12%",fx:(x)=>({d:`The renter's payment rises from ${money(x.rent)} to ${money(x.rent*1.12)}, about ${money(x.rent*.12*12)} more per year. A fixed-rate owner's principal and interest stay the same.`,q:"Does this change your recommendation?"})},
+  {t:"Weather",h:"Storm damages the roof",fx:(x,o)=>{const c=9000,left=x.savings-o.down-o.closing;return{d:`Repair: ${money(c)} (insurance deductible plus what isn't covered, example). Owner's cash after buying: ${money(left)}. Renter: not their bill.`,q:"Why might someone who loves stability still prefer renting?"}}},
+  {t:"Market",h:"Home values dip 10%",fx:(x,o)=>{const a=netCosts(x,x.years,o),b=netCosts(x,x.years,o,{valueShock:.9});return{d:`If values are 10% lower when ${P().name} sells in year ${x.years}, equity drops from ${money(a.equity)} to ${money(b.equity)}.`,q:"Is a home a guaranteed investment?"}}},
+  {t:"County notice",h:"Property taxes reassessed +20%",fx:(x,o)=>({d:`Monthly property tax rises from ${money(o.tax)} to ${money(o.tax*1.2)}. The all-in owner cost becomes about ${money(o.monthly+o.tax*.2)} per month.`,q:"Which homeowner costs can rise even on a fixed-rate loan?"})},
+  {t:"Surprise",h:"Landlord sells the building",fx:()=>({d:"The renter has 60 days to move. Movers, a new deposit and time off work: about $2,500. Owners can't be asked to leave this way.",q:"How much is stability worth to your persona?"})},
+  {t:"Good news",h:"A promotion: +$600 per month",fx:(x,o)=>{const left=Math.max(0,x.savings-o.down-o.closing),need=6*(x.expenses+o.monthly);return{d:`If ${P().name} saves the raise, the emergency fund reaches 6 months in about ${Math.max(0,Math.ceil((need-left)/600))} months.`,q:"Would waiting a year to buy be a smart move?"}}}
+];
+let deck=[];
+function shuffle(){deck=twists.map((_,i)=>i).sort(()=>Math.random()-.5)}
+shuffle();
+function deckCount(){$("#deckLeft").textContent=deck.length+" card"+(deck.length===1?"":"s")+" left"}
+deckCount();
+$("#deal").onclick=()=>{
+  if(!deck.length)shuffle();
+  const c=twists[deck.pop()],x=inputs(),o=owner(x),r=c.fx(x,o),el=$("#twist");
+  el.innerHTML=`<p class="icon">Plot twist · ${c.t}</p><h3>${c.h}</h3><p>${r.d}</p><p class="callout"><strong>Huddle:</strong> ${r.q}</p>`;
+  el.classList.remove("dealt");void el.offsetWidth;el.classList.add("dealt");deckCount();
+};
+
+/* ---------- exit ticket (correct answers: B, D, A, C) ---------- */
+const Q=[
+  {q:"Which cost does a homeowner usually pay that a renter usually does not?",o:["The monthly housing payment","Major repairs, like a new roof","Utilities such as electricity","Moving costs"],c:1,e:"Landlords typically pay for major repairs. Owners pay for every repair themselves."},
+  {q:"Why can renting be the smarter choice for someone who expects to move in two years?",o:["Renters build equity faster than owners","Rent never increases","Landlords pay their tenants' utilities","Buying and selling costs can outweigh the equity built in a short stay"],c:3,e:"Closing and selling costs are large. A short stay often doesn't build enough equity to cover them."},
+  {q:"A buyer can afford the mortgage payment but would use all their savings on the down payment. What is the biggest risk?",o:["No emergency fund for surprise repairs or a job loss","The interest rate will be too low","They will pay too little property tax","Their equity will grow too quickly"],c:0,e:"Affording the payment isn't the same as being ready. Savings protect you when the water heater quits."},
+  {q:"Which describes a house hack?",o:["Renting a house and secretly subleasing rooms","Buying shares of home-building companies","Living in one unit of a multi-unit property and renting out the others","Skipping the down payment entirely"],c:2,e:"The tenant's rent helps cover your housing cost, though you take on landlord risks."}
+];
+$("#quiz").innerHTML=Q.map((x,i)=>`<fieldset><legend>${i+1}. ${x.q}</legend>${x.o.map((t,j)=>`<label class="opt" id="o${i}_${j}"><input type="radio" name="q${i}" value="${j}"><span><strong>${"ABCD"[j]}.</strong> ${t}</span></label>`).join("")}<p class="fb" id="fb${i}" aria-live="polite"></p></fieldset>`).join("");
+const correct=new Set();
+$("#quiz").addEventListener("change",e=>{
+  const i=+e.target.name.slice(1),j=+e.target.value,x=Q[i];
+  if(j===x.c)correct.add(i);else correct.delete(i);
+  updateCert();
+  x.o.forEach((_,k)=>{const l=$(`#o${i}_${k}`);l.classList.toggle("correct",k===x.c&&j===x.c);l.classList.toggle("wrong",k===j&&j!==x.c)});
+  const fb=$("#fb"+i);fb.innerHTML=j===x.c?`<span class="status good">Correct.</span> ${x.e}`:`<span class="status bad">Not quite.</span> Try again. Hint: ${x.e.split(".")[0]}.`;
+});
+$("#quiz").addEventListener("submit",e=>e.preventDefault());
+$("#copyCall").onclick=()=>{const t=$("#myCall");const ok=()=>$("#copyMsg").textContent="Copied.";
+  if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(t.value).then(ok,()=>{t.select();$("#copyMsg").textContent="Selected. Press Ctrl+C or ⌘C."})}else{t.select();$("#copyMsg").textContent="Selected. Press Ctrl+C or ⌘C."}};
+
+/* ---------- certificate + badge ---------- */
+const esc=s=>s.replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+let standalone=false;try{standalone=window.self===window.top}catch(e){standalone=false}
+if(standalone){document.querySelectorAll(".standalone-only").forEach(b=>b.hidden=false);$("#certTip").textContent="Print it, download the badge, or take a screenshot. It disappears when you leave this page."}
+function ready(){return{q:correct.size===4,c:$("#myCall").value.trim().length>=40,n:$("#stuName").value.trim().length>0}}
+function mark(id,ok){const li=$("#"+id);li.classList.toggle("done",ok);li.querySelector(".ckmark").textContent=ok?"✓":"○"}
+function updateCert(){
+  const r=ready();
+  mark("ck1",r.q);mark("ck2",r.c);mark("ck3",r.n);$("#ck1n").textContent=`(${correct.size}/4)`;
+  $("#claim").disabled=!(r.q&&r.c&&r.n);
+  if(!(r.q&&r.c&&r.n))$("#cert").hidden=true;
+}
+$("#myCall").addEventListener("input",updateCert);
+$("#stuName").addEventListener("input",updateCert);
+const SERIF="'Playfair Display',Georgia,'Times New Roman',serif",MONO="'IBM Plex Mono',Menlo,Consolas,monospace",SANS="'IBM Plex Sans',Arial,sans-serif";
+function seal(cx,cy,s){
+  return `<g transform="translate(${cx} ${cy}) scale(${s})">
+    <path d="M-34 40 L-52 108 L-30 96 L-18 118 L-4 52 Z" fill="#12203A"/>
+    <path d="M34 40 L52 108 L30 96 L18 118 L4 52 Z" fill="#12203A"/>
+    <circle r="72" fill="#C9A24A"/>
+    <circle r="62" fill="none" stroke="#12203A" stroke-width="3" stroke-dasharray="2 5"/>
+    <circle r="50" fill="#12203A"/>
+    <path d="M-22 6 L0 -16 L22 6 L22 26 L-22 26 Z" fill="none" stroke="#C9A24A" stroke-width="4" stroke-linejoin="round"/>
+    <rect x="-5" y="12" width="10" height="14" fill="#C9A24A"/>
+    <text y="-26" text-anchor="middle" font-family="${MONO}" font-size="11" font-weight="600" fill="#C9A24A" letter-spacing="2">HOUSING</text>
+    <text y="44" text-anchor="middle" font-family="${MONO}" font-size="10" font-weight="600" fill="#C9A24A" letter-spacing="2">DECISION PRO</text>
+  </g>`;
+}
+function certSVG(name){
+  const d=new Date().toLocaleDateString("en-US",{year:"numeric",month:"long",day:"numeric"});
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 560" role="img" aria-label="Certificate of completion for ${esc(name)}, Housing Decision Pro">
+  <rect width="800" height="560" fill="#FFFFFF"/>
+  <rect x="10" y="10" width="780" height="540" fill="none" stroke="#12203A" stroke-width="14"/>
+  <rect x="30" y="30" width="740" height="500" fill="none" stroke="#C9A24A" stroke-width="2"/>
+  <text x="400" y="88" text-anchor="middle" font-family="${MONO}" font-size="15" font-weight="600" fill="#8A6417" letter-spacing="5">CERTIFICATE OF COMPLETION</text>
+  <text x="400" y="140" text-anchor="middle" font-family="${SERIF}" font-size="40" font-weight="800" fill="#12203A">Rent It or Own It</text>
+  <text x="400" y="190" text-anchor="middle" font-family="${SANS}" font-size="16" fill="#4A5873">This certifies that</text>
+  <text x="400" y="250" text-anchor="middle" font-family="${SERIF}" font-size="44" font-weight="600" fill="#12203A">${esc(name)}</text>
+  <line x1="200" y1="268" x2="600" y2="268" stroke="#C9A24A" stroke-width="2"/>
+  <text x="400" y="304" text-anchor="middle" font-family="${SANS}" font-size="16" fill="#12203A">ran the numbers on renting and buying, tested a house hack,</text>
+  <text x="400" y="328" text-anchor="middle" font-family="${SANS}" font-size="16" fill="#12203A">survived the plot twists, and earned the title</text>
+  <text x="400" y="376" text-anchor="middle" font-family="${SERIF}" font-size="30" font-weight="800" fill="#8A6417">Housing Decision Pro</text>
+  <text x="80" y="470" font-family="${MONO}" font-size="13" fill="#4A5873">PERSONA</text>
+  <text x="80" y="492" font-family="${SANS}" font-size="16" font-weight="600" fill="#12203A">${esc(P().name)}</text>
+  <text x="300" y="470" font-family="${MONO}" font-size="13" fill="#4A5873">DATE</text>
+  <text x="300" y="492" font-family="${SANS}" font-size="16" font-weight="600" fill="#12203A">${d}</text>
+  ${seal(660,430,.95)}
+</svg>`;
+}
+function badgeSVG(name){
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400" width="800" height="800">
+  <rect width="400" height="400" fill="#FFFFFF"/>
+  ${seal(200,170,1.7)}
+  <text x="200" y="372" text-anchor="middle" font-family="${SANS}" font-size="20" font-weight="600" fill="#12203A">${esc(name)}</text>
+</svg>`;
+}
+$("#claim").onclick=()=>{
+  const name=$("#stuName").value.trim();
+  $("#certSvg").innerHTML=certSVG(name);$("#cert").hidden=false;
+  $("#claimMsg").textContent="Certificate unlocked!";
+  $("#cert").scrollIntoView({behavior:matchMedia("(prefers-reduced-motion: reduce)").matches?"auto":"smooth",block:"start"});
+};
+$("#printCert").onclick=()=>window.print();
+$("#dlBadge").onclick=()=>{
+  const name=$("#stuName").value.trim()||"Student";
+  const img=new Image(),url=URL.createObjectURL(new Blob([badgeSVG(name)],{type:"image/svg+xml"}));
+  img.onload=()=>{const c=document.createElement("canvas");c.width=800;c.height=800;c.getContext("2d").drawImage(img,0,0,800,800);URL.revokeObjectURL(url);
+    c.toBlob(b=>{const a=document.createElement("a");a.href=URL.createObjectURL(b);a.download="housing-decision-pro-badge.png";document.body.appendChild(a);a.click();a.remove()},"image/png")};
+  img.src=url;
+};
+
+/* ---------- clear everything ---------- */
+document.querySelectorAll("form,input,textarea,select").forEach(el=>el.setAttribute("autocomplete","off"));
+function resetAll(){
+  $("#quiz").reset();correct.clear();
+  Q.forEach((x,i)=>{x.o.forEach((_,k)=>$(`#o${i}_${k}`).classList.remove("correct","wrong"));$("#fb"+i).textContent=""});
+  $("#myCall").value="";$("#stuName").value="";
+  ["#copyMsg","#claimMsg","#drawMsg"].forEach(s=>$(s).textContent="");
+  $("#cert").hidden=true;$("#certSvg").innerHTML="";
+  myths.forEach((_,i)=>{$("#ans"+i).hidden=true;const b=document.querySelector(`[data-reveal="${i}"]`);b.setAttribute("aria-expanded","false");b.textContent="Reveal"});
+  document.querySelectorAll(".flip").forEach(b=>b.setAttribute("aria-expanded","false"));
+  $("#invest").checked=false;$("#rate").value=6.5;
+  $("#hPrice").value=360000;$("#hDp").value="5";$("#hRent").value=1350;$("#hVac").value=1;
+  load(1);hack();
+  $("#twist").innerHTML='<p class="icon">Card face down</p><h3>Ready when you are</h3><p>Press "Deal a plot twist" to reveal what life throws at your persona.</p>';
+  shuffle();deckCount();
+  updateCert();
+}
+$("#resetAll").onclick=()=>{resetAll();location.hash="overview";show("overview");$("#resetMsg").textContent="Everything cleared. Ready for the next class."};
+window.addEventListener("pagehide",resetAll);
+window.addEventListener("pageshow",()=>{resetAll();reset()});
+
+/* ---------- boot ---------- */
+resetAll();
+show(location.hash.slice(1)||"overview");
+})();
+</script>
+</body>
+</html>
